@@ -9,6 +9,7 @@ const R2Homepage: React.FC = () => {
 
   const statsRef = useRef<HTMLElement>(null);
 
+  // Scroll-reveal jääb scroll eventiga (ok)
   useEffect(() => {
     const handleScroll = () => {
       const reveals = document.querySelectorAll(".scroll-reveal");
@@ -19,21 +20,33 @@ const R2Homepage: React.FC = () => {
           element.classList.add("active");
         }
       });
-
-      if (statsRef.current && !countersAnimated) {
-        const statsTop = statsRef.current.getBoundingClientRect().top;
-        const windowHeight = window.innerHeight;
-
-        if (statsTop < windowHeight - 100) {
-          setCountersAnimated(true);
-          animateCounters();
-        }
-      }
     };
 
     window.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // ✅ Counterid käivituvad AINULT siis, kui stats sektsioon päriselt nähtavale scrollitakse
+  useEffect(() => {
+    if (!statsRef.current) return;
+
+    const el = statsRef.current;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !countersAnimated) {
+          setCountersAnimated(true);
+          animateCounters();
+          observer.disconnect(); // ainult 1x
+        }
+      },
+      { threshold: 0.35 } // ~35% sektsioonist nähtav -> käivitub
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [countersAnimated]);
 
   const animateCounters = () => {
@@ -947,7 +960,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Modernne one-page või 3 sektsiooniga landing
@@ -955,7 +974,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Mobile-first disain + kiire laadimine
@@ -963,7 +988,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kontakt CTA + e-mail / vorm / tel link
@@ -971,7 +1002,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Usaldus: sektsioonid, teenused, lihtne copy
@@ -979,7 +1016,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kasu: näed parem välja → rohkem päringuid
@@ -1019,7 +1062,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kõik Basic paketist (disain, CTA, kiirus)
@@ -1027,7 +1076,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Broneerimissüsteem (ajad, teenused, kinnitused)
@@ -1035,7 +1090,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Automaatsed teavitused (e-mail / SMS valikuline)
@@ -1043,7 +1104,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Vähem käsitööd: vähem kõnesid, vähem “kas sul aega on?”
@@ -1051,7 +1118,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kasu: rohkem broneeringuid + vähem tühje auke
@@ -1087,7 +1160,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kõik Pro paketist (broneerimine + automaatika)
@@ -1095,7 +1174,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     AI receptionist (vastab küsimustele, juhib broneeringule)
@@ -1103,7 +1188,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     24/7: püüab kinni “kuumad” kliendid ka öösel
@@ -1111,7 +1202,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Vähem kaotatud päringuid + kiirem reageerimine
@@ -1119,7 +1216,13 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M20 6L9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </span>
                     Kasu: rohkem müüki, vähem “ma lähen konkurendi juurde”
