@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const R2Homepage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [countersAnimated, setCountersAnimated] = useState<boolean>(false);
-  const [statCounts, setStatCounts] = useState<number[]>([0, 0, 0, 0]);
 
   const statsRef = useRef<HTMLElement>(null);
 
-  // Scroll-reveal jääb scroll eventiga (ok)
+  // ✅ refs, et counterid ei teeks React re-renderit (smooth scroll)
+  const statNumberRefs = useRef<Array<HTMLSpanElement | null>>([null, null, null, null]);
+  const counterRafRef = useRef<number | null>(null);
+
+  // Scroll-reveal (jääb scroll eventiga; light)
   useEffect(() => {
     const handleScroll = () => {
       const reveals = document.querySelectorAll(".scroll-reveal");
@@ -22,7 +25,7 @@ const R2Homepage: React.FC = () => {
       });
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -42,31 +45,58 @@ const R2Homepage: React.FC = () => {
           observer.disconnect(); // ainult 1x
         }
       },
-      { threshold: 0.35 } // ~35% sektsioonist nähtav -> käivitub
+      { threshold: 0.35 }
     );
 
     observer.observe(el);
     return () => observer.disconnect();
   }, [countersAnimated]);
 
+  // ✅ Clean up RAF if component unmounts
+  useEffect(() => {
+    return () => {
+      if (counterRafRef.current) cancelAnimationFrame(counterRafRef.current);
+    };
+  }, []);
+
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
   const animateCounters = () => {
     const targets = [150, 98, 50, 24];
-    const duration = 2000;
-    const steps = 60;
-    const interval = duration / steps;
+    const duration = 1600; // veidi lühem ja sujuvam
+    const start = performance.now();
 
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      currentStep++;
-      const progress = currentStep / steps;
+    // set initial 0 (kindluse mõttes)
+    for (let i = 0; i < targets.length; i++) {
+      const el = statNumberRefs.current[i];
+      if (el) el.textContent = "0";
+    }
 
-      setStatCounts(targets.map((target) => Math.floor(target * progress)));
+    const tick = (now: number) => {
+      const raw = (now - start) / duration;
+      const t = Math.min(1, Math.max(0, raw));
+      const eased = easeOutCubic(t);
 
-      if (currentStep >= steps) {
-        setStatCounts(targets);
-        clearInterval(timer);
+      for (let i = 0; i < targets.length; i++) {
+        const el = statNumberRefs.current[i];
+        if (!el) continue;
+        const value = Math.floor(targets[i] * eased);
+        el.textContent = String(value);
       }
-    }, interval);
+
+      if (t < 1) {
+        counterRafRef.current = requestAnimationFrame(tick);
+      } else {
+        // final values (täpsed)
+        for (let i = 0; i < targets.length; i++) {
+          const el = statNumberRefs.current[i];
+          if (el) el.textContent = String(targets[i]);
+        }
+      }
+    };
+
+    if (counterRafRef.current) cancelAnimationFrame(counterRafRef.current);
+    counterRafRef.current = requestAnimationFrame(tick);
   };
 
   const smoothScroll = (
@@ -86,11 +116,7 @@ const R2Homepage: React.FC = () => {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Montserrat:wght@300;400;600&display=swap');
 
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
           --bg-dark: #0a0a0f;
@@ -108,26 +134,15 @@ const R2Homepage: React.FC = () => {
           overflow-x: hidden;
         }
 
-        .app {
-          position: relative;
-          width: 100%;
-          min-height: 100vh;
-        }
+        .app { position: relative; width: 100%; min-height: 100vh; }
 
         .bg-animation {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          z-index: 0;
-          overflow: hidden;
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          z-index: 0; overflow: hidden;
         }
 
         .bg-gradient {
-          position: absolute;
-          width: 200%;
-          height: 200%;
+          position: absolute; width: 200%; height: 200%;
           background: radial-gradient(circle at 20% 50%, rgba(255, 8, 68, 0.15) 0%, transparent 50%),
                       radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.15) 0%, transparent 50%);
           animation: gradientMove 20s ease-in-out infinite;
@@ -139,10 +154,8 @@ const R2Homepage: React.FC = () => {
         }
 
         .grid-overlay {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background-image: 
+          position: absolute; width: 100%; height: 100%;
+          background-image:
             linear-gradient(rgba(255, 8, 68, 0.03) 1px, transparent 1px),
             linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
           background-size: 50px 50px;
@@ -155,13 +168,9 @@ const R2Homepage: React.FC = () => {
         }
 
         nav {
-          position: fixed;
-          top: 0;
-          width: 100%;
+          position: fixed; top: 0; width: 100%;
           padding: 30px 5%;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+          display: flex; justify-content: space-between; align-items: center;
           z-index: 1000;
           background: rgba(10, 10, 15, 0.8);
           backdrop-filter: blur(10px);
@@ -175,11 +184,9 @@ const R2Homepage: React.FC = () => {
 
         .logo {
           font-family: 'Orbitron', sans-serif;
-          font-size: 28px;
-          font-weight: 900;
+          font-size: 28px; font-weight: 900;
           background: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-blue) 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
+          -webkit-background-clip: text; background-clip: text;
           -webkit-text-fill-color: transparent;
           animation: glowPulse 3s ease-in-out infinite;
         }
@@ -189,11 +196,7 @@ const R2Homepage: React.FC = () => {
           50% { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.5)); }
         }
 
-        .nav-links {
-          display: flex;
-          gap: 40px;
-          list-style: none;
-        }
+        .nav-links { display: flex; gap: 40px; list-style: none; }
 
         .nav-links a {
           color: var(--text-white);
@@ -206,21 +209,14 @@ const R2Homepage: React.FC = () => {
         .nav-links a::after {
           content: '';
           position: absolute;
-          bottom: -5px;
-          left: 0;
-          width: 0;
-          height: 2px;
+          bottom: -5px; left: 0;
+          width: 0; height: 2px;
           background: linear-gradient(90deg, var(--accent-red), var(--accent-blue));
           transition: width 0.4s ease;
         }
 
-        .nav-links a:hover {
-          color: var(--accent-red);
-        }
-
-        .nav-links a:hover::after {
-          width: 100%;
-        }
+        .nav-links a:hover { color: var(--accent-red); }
+        .nav-links a:hover::after { width: 100%; }
 
         .hero {
           position: relative;
@@ -232,10 +228,7 @@ const R2Homepage: React.FC = () => {
           z-index: 1;
         }
 
-        .hero-content {
-          text-align: center;
-          max-width: 1200px;
-        }
+        .hero-content { text-align: center; max-width: 1200px; }
 
         .hero h1 {
           font-family: 'Orbitron', sans-serif;
@@ -243,8 +236,7 @@ const R2Homepage: React.FC = () => {
           font-weight: 900;
           margin-bottom: 20px;
           background: linear-gradient(135deg, #ffffff 0%, var(--accent-red) 50%, var(--accent-blue) 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
+          -webkit-background-clip: text; background-clip: text;
           -webkit-text-fill-color: transparent;
           animation: titleZoom 1.2s ease-out;
           line-height: 1.1;
@@ -255,10 +247,7 @@ const R2Homepage: React.FC = () => {
           to { transform: scale(1); opacity: 1; }
         }
 
-        .glitch {
-          position: relative;
-          animation: glitchSkew 5s infinite;
-        }
+        .glitch { position: relative; animation: glitchSkew 5s infinite; }
 
         @keyframes glitchSkew {
           0%, 96%, 100% { transform: skew(0deg); }
@@ -297,22 +286,14 @@ const R2Homepage: React.FC = () => {
         .cta-button::before {
           content: '';
           position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
+          top: 0; left: -100%;
+          width: 100%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
           transition: left 0.5s ease;
         }
 
-        .cta-button:hover::before {
-          left: 100%;
-        }
-
-        .cta-button:hover {
-          transform: scale(1.05);
-          box-shadow: 0 10px 40px rgba(255, 8, 68, 0.4);
-        }
+        .cta-button:hover::before { left: 100%; }
+        .cta-button:hover { transform: scale(1.05); box-shadow: 0 10px 40px rgba(255, 8, 68, 0.4); }
 
         .floating-code {
           position: absolute;
@@ -333,11 +314,7 @@ const R2Homepage: React.FC = () => {
           50% { transform: translateY(-30px) rotate(5deg); opacity: 0.6; }
         }
 
-        .services {
-          position: relative;
-          padding: 120px 5%;
-          z-index: 1;
-        }
+        .services { position: relative; padding: 120px 5%; z-index: 1; }
 
         .section-title {
           font-family: 'Orbitron', sans-serif;
@@ -345,8 +322,7 @@ const R2Homepage: React.FC = () => {
           text-align: center;
           margin-bottom: 80px;
           background: linear-gradient(135deg, var(--accent-red), var(--accent-blue));
-          -webkit-background-clip: text;
-          background-clip: text;
+          -webkit-background-clip: text; background-clip: text;
           -webkit-text-fill-color: transparent;
         }
 
@@ -372,10 +348,7 @@ const R2Homepage: React.FC = () => {
         .service-card::before {
           content: '';
           position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
+          top: -2px; left: -2px; right: -2px; bottom: -2px;
           background: linear-gradient(135deg, var(--accent-red), var(--accent-blue));
           border-radius: 20px;
           opacity: 0;
@@ -383,17 +356,12 @@ const R2Homepage: React.FC = () => {
           z-index: -1;
         }
 
-        .service-card:hover::before {
-          opacity: 1;
-        }
+        .service-card:hover::before { opacity: 1; }
 
         .service-card::after {
           content: '';
           position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          top: 0; left: 0; right: 0; bottom: 0;
           background: var(--bg-secondary);
           border-radius: 18px;
           z-index: -1;
@@ -427,10 +395,7 @@ const R2Homepage: React.FC = () => {
           color: var(--text-white);
         }
 
-        .service-card p {
-          color: var(--text-gray);
-          line-height: 1.6;
-        }
+        .service-card p { color: var(--text-gray); line-height: 1.6; }
 
         .stats {
           position: relative;
@@ -447,10 +412,9 @@ const R2Homepage: React.FC = () => {
           margin: 0 auto;
         }
 
-        .stat-item {
-          text-align: center;
-        }
+        .stat-item { text-align: center; }
 
+        /* ✅ oluline: tabular-nums + min-width => ei “hüppa” laiuses (no jitter) */
         .stat-number {
           font-family: 'Orbitron', sans-serif;
           font-size: clamp(48px, 8vw, 72px);
@@ -459,8 +423,11 @@ const R2Homepage: React.FC = () => {
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          display: block;
+          display: inline-block;
           margin-bottom: 10px;
+          font-variant-numeric: tabular-nums;
+          min-width: 4ch;
+          will-change: contents;
         }
 
         .stat-label {
@@ -471,11 +438,7 @@ const R2Homepage: React.FC = () => {
         }
 
         /* PRICING */
-        .pricing {
-          position: relative;
-          padding: 120px 5%;
-          z-index: 1;
-        }
+        .pricing { position: relative; padding: 120px 5%; z-index: 1; }
 
         .pricing-subtitle {
           text-align: center;
@@ -531,9 +494,7 @@ const R2Homepage: React.FC = () => {
           border-color: rgba(0, 212, 255, 0.28);
         }
 
-        .plan-card:hover::before {
-          opacity: 1;
-        }
+        .plan-card:hover::before { opacity: 1; }
 
         .plan-head {
           padding: 28px 28px 22px;
@@ -547,11 +508,7 @@ const R2Homepage: React.FC = () => {
           margin-bottom: 10px;
         }
 
-        .plan-desc {
-          color: var(--text-gray);
-          line-height: 1.6;
-          font-size: 15px;
-        }
+        .plan-desc { color: var(--text-gray); line-height: 1.6; font-size: 15px; }
 
         .plan-price {
           padding: 18px 28px 0;
@@ -574,16 +531,9 @@ const R2Homepage: React.FC = () => {
           margin-top: 6px;
         }
 
-        .plan-body {
-          padding: 20px 28px 26px;
-        }
+        .plan-body { padding: 20px 28px 26px; }
 
-        .checklist {
-          list-style: none;
-          margin-top: 14px;
-          display: grid;
-          gap: 10px;
-        }
+        .checklist { list-style: none; margin-top: 14px; display: grid; gap: 10px; }
 
         .check {
           display: flex;
@@ -607,14 +557,9 @@ const R2Homepage: React.FC = () => {
           margin-top: 1px;
         }
 
-        .tick svg {
-          width: 14px;
-          height: 14px;
-        }
+        .tick svg { width: 14px; height: 14px; }
 
-        .plan-cta {
-          padding: 0 28px 28px;
-        }
+        .plan-cta { padding: 0 28px 28px; }
 
         .plan-btn {
           width: 100%;
@@ -632,22 +577,11 @@ const R2Homepage: React.FC = () => {
           box-shadow: 0 12px 40px rgba(0,0,0,0.35);
         }
 
-        .plan-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 18px 60px rgba(255, 8, 68, 0.25);
-        }
+        .plan-btn:hover { transform: translateY(-2px); box-shadow: 0 18px 60px rgba(255, 8, 68, 0.25); }
 
-        .featured {
-          transform: translateY(-10px);
-        }
-
-        .featured::before {
-          opacity: 1;
-        }
-
-        .featured .plan-head {
-          background: linear-gradient(180deg, rgba(255, 8, 68, 0.14), transparent);
-        }
+        .featured { transform: translateY(-10px); }
+        .featured::before { opacity: 1; }
+        .featured .plan-head { background: linear-gradient(180deg, rgba(255, 8, 68, 0.14), transparent); }
 
         .badge {
           display: inline-flex;
@@ -664,24 +598,14 @@ const R2Homepage: React.FC = () => {
         }
 
         .badge-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
+          width: 8px; height: 8px; border-radius: 50%;
           background: var(--accent-red);
           box-shadow: 0 0 18px rgba(255, 8, 68, 0.6);
         }
 
-        .contact {
-          position: relative;
-          padding: 120px 5%;
-          z-index: 1;
-        }
+        .contact { position: relative; padding: 120px 5%; z-index: 1; }
 
-        .contact-container {
-          max-width: 800px;
-          margin: 0 auto;
-          text-align: center;
-        }
+        .contact-container { max-width: 800px; margin: 0 auto; text-align: center; }
 
         .contact h2 {
           font-family: 'Orbitron', sans-serif;
@@ -693,11 +617,7 @@ const R2Homepage: React.FC = () => {
           -webkit-text-fill-color: transparent;
         }
 
-        .contact p {
-          font-size: 20px;
-          color: var(--text-gray);
-          margin-bottom: 40px;
-        }
+        .contact p { font-size: 20px; color: var(--text-gray); margin-bottom: 40px; }
 
         .contact-email {
           font-size: 28px;
@@ -711,22 +631,15 @@ const R2Homepage: React.FC = () => {
         .contact-email::after {
           content: '';
           position: absolute;
-          bottom: -5px;
-          left: 0;
-          width: 100%;
-          height: 3px;
+          bottom: -5px; left: 0;
+          width: 100%; height: 3px;
           background: linear-gradient(90deg, var(--accent-red), var(--accent-blue));
           transform: scaleX(0);
           transition: transform 0.4s ease;
         }
 
-        .contact-email:hover {
-          color: var(--accent-red);
-        }
-
-        .contact-email:hover::after {
-          transform: scaleX(1);
-        }
+        .contact-email:hover { color: var(--accent-red); }
+        .contact-email:hover::after { transform: scaleX(1); }
 
         footer {
           position: relative;
@@ -736,9 +649,7 @@ const R2Homepage: React.FC = () => {
           z-index: 1;
         }
 
-        footer p {
-          color: var(--text-gray);
-        }
+        footer p { color: var(--text-gray); }
 
         .scroll-reveal {
           opacity: 0;
@@ -746,10 +657,7 @@ const R2Homepage: React.FC = () => {
           transition: opacity 0.8s ease, transform 0.8s ease;
         }
 
-        .scroll-reveal.active {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        .scroll-reveal.active { opacity: 1; transform: translateY(0); }
 
         .mobile-menu-btn {
           display: none;
@@ -768,19 +676,12 @@ const R2Homepage: React.FC = () => {
         }
 
         @media (max-width: 980px) {
-          .pricing-grid {
-            grid-template-columns: 1fr;
-            max-width: 650px;
-          }
-          .featured {
-            transform: translateY(0);
-          }
+          .pricing-grid { grid-template-columns: 1fr; max-width: 650px; }
+          .featured { transform: translateY(0); }
         }
 
         @media (max-width: 768px) {
-          .mobile-menu-btn {
-            display: flex;
-          }
+          .mobile-menu-btn { display: flex; }
 
           .nav-links {
             position: fixed;
@@ -794,18 +695,10 @@ const R2Homepage: React.FC = () => {
             transition: left 0.4s ease;
           }
 
-          .nav-links.active {
-            left: 0;
-          }
+          .nav-links.active { left: 0; }
 
-          .service-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 40px;
-          }
+          .service-grid { grid-template-columns: 1fr; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 40px; }
         }
 
         .particle {
@@ -960,13 +853,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Modernne one-page või 3 sektsiooniga landing
@@ -974,13 +861,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Mobile-first disain + kiire laadimine
@@ -988,13 +869,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kontakt CTA + e-mail / vorm / tel link
@@ -1002,13 +877,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Usaldus: sektsioonid, teenused, lihtne copy
@@ -1016,13 +885,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kasu: näed parem välja → rohkem päringuid
@@ -1030,11 +893,7 @@ const R2Homepage: React.FC = () => {
                 </ul>
               </div>
               <div className="plan-cta">
-                <a
-                  className="plan-btn"
-                  href="#kontakt"
-                  onClick={(e) => smoothScroll(e, "#kontakt")}
-                >
+                <a className="plan-btn" href="#kontakt" onClick={(e) => smoothScroll(e, "#kontakt")}>
                   Küsi pakkumist
                 </a>
               </div>
@@ -1045,8 +904,7 @@ const R2Homepage: React.FC = () => {
               <div className="plan-head">
                 <div className="plan-name">Pro</div>
                 <div className="plan-desc">
-                  Veebileht + broneerimissüsteem. Sobib teenuseärile, kus aeg =
-                  raha.
+                  Veebileht + broneerimissüsteem. Sobib teenuseärile, kus aeg = raha.
                 </div>
                 <div className="badge">
                   <span className="badge-dot" />
@@ -1062,13 +920,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kõik Basic paketist (disain, CTA, kiirus)
@@ -1076,13 +928,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Broneerimissüsteem (ajad, teenused, kinnitused)
@@ -1090,13 +936,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Automaatsed teavitused (e-mail / SMS valikuline)
@@ -1104,13 +944,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Vähem käsitööd: vähem kõnesid, vähem “kas sul aega on?”
@@ -1118,13 +952,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kasu: rohkem broneeringuid + vähem tühje auke
@@ -1132,11 +960,7 @@ const R2Homepage: React.FC = () => {
                 </ul>
               </div>
               <div className="plan-cta">
-                <a
-                  className="plan-btn"
-                  href="#kontakt"
-                  onClick={(e) => smoothScroll(e, "#kontakt")}
-                >
+                <a className="plan-btn" href="#kontakt" onClick={(e) => smoothScroll(e, "#kontakt")}>
                   Küsi pakkumist
                 </a>
               </div>
@@ -1147,8 +971,7 @@ const R2Homepage: React.FC = () => {
               <div className="plan-head">
                 <div className="plan-name">Elite</div>
                 <div className="plan-desc">
-                  Veeb + broneerimine + AI receptionist, kes vastab ja suunab
-                  kliente 24/7.
+                  Veeb + broneerimine + AI receptionist, kes vastab ja suunab kliente 24/7.
                 </div>
               </div>
               <div className="plan-price">
@@ -1160,13 +983,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kõik Pro paketist (broneerimine + automaatika)
@@ -1174,13 +991,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     AI receptionist (vastab küsimustele, juhib broneeringule)
@@ -1188,13 +999,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     24/7: püüab kinni “kuumad” kliendid ka öösel
@@ -1202,13 +1007,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Vähem kaotatud päringuid + kiirem reageerimine
@@ -1216,13 +1015,7 @@ const R2Homepage: React.FC = () => {
                   <li className="check">
                     <span className="tick" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M20 6L9 17l-5-5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
                     Kasu: rohkem müüki, vähem “ma lähen konkurendi juurde”
@@ -1230,11 +1023,7 @@ const R2Homepage: React.FC = () => {
                 </ul>
               </div>
               <div className="plan-cta">
-                <a
-                  className="plan-btn"
-                  href="#kontakt"
-                  onClick={(e) => smoothScroll(e, "#kontakt")}
-                >
+                <a className="plan-btn" href="#kontakt" onClick={(e) => smoothScroll(e, "#kontakt")}>
                   Küsi pakkumist
                 </a>
               </div>
@@ -1245,19 +1034,47 @@ const R2Homepage: React.FC = () => {
         <section className="stats scroll-reveal" ref={statsRef}>
           <div className="stats-grid">
             <div className="stat-item">
-              <span className="stat-number">{statCounts[0]}</span>
+              <span
+                className="stat-number"
+                ref={(el) => {
+                  statNumberRefs.current[0] = el;
+                }}
+              >
+                0
+              </span>
               <span className="stat-label">Projekti</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{statCounts[1]}</span>
+              <span
+                className="stat-number"
+                ref={(el) => {
+                  statNumberRefs.current[1] = el;
+                }}
+              >
+                0
+              </span>
               <span className="stat-label">% Rahulolu</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{statCounts[2]}</span>
+              <span
+                className="stat-number"
+                ref={(el) => {
+                  statNumberRefs.current[2] = el;
+                }}
+              >
+                0
+              </span>
               <span className="stat-label">Tiimi Liiget</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{statCounts[3]}</span>
+              <span
+                className="stat-number"
+                ref={(el) => {
+                  statNumberRefs.current[3] = el;
+                }}
+              >
+                0
+              </span>
               <span className="stat-label">/ 7 Tugi</span>
             </div>
           </div>
